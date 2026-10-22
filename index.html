@@ -1,451 +1,177 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contador Interactivo</title>
+    <title>Contador de Asistencia en Tiempo Real</title>
+    <link rel="manifest" href="manifest.json">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Plus Jakarta Sans', 'sans-serif'],
-                    },
-                    animation: {
-                        'pop': 'pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                        'pulse-subtle': 'pulseSubtle 2s infinite',
-                    },
-                    keyframes: {
-                        pop: {
-                            '0%': { transform: 'scale(0.95)' },
-                            '50%': { transform: 'scale(1.08)' },
-                            '100%': { transform: 'scale(1)' },
-                        },
-                        pulseSubtle: {
-                            '0%, 100%': { opacity: '1' },
-                            '50%': { opacity: '0.85' },
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        /* Ocultar las flechas nativas de los inputs de tipo number */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-            -webkit-appearance: none;
-            margin: 0; 
-        }
-        input[type=number] {
-            -moz-appearance: textfield;
-        }
-    </style>
-    <link rel="manifest" href="manifest.json">
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
-<body class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 min-h-full flex flex-col justify-center items-center p-4 font-sans text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 min-h-screen text-white flex flex-col items-center justify-between p-4">
 
-    <!-- Card Principal -->
-    <main class="w-full max-w-md bg-slate-800/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-indigo-950/50 relative overflow-hidden transition-all">
-        
-        <!-- Elementos decorativos de fondo -->
-        <div class="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <!-- Encabezado -->
+    <header class="w-full max-w-md text-center py-4">
+        <span class="px-3 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-semibold rounded-full border border-indigo-500/30">
+            SISTEMA MULTI-DISPOSITIVO
+        </span>
+        <h1 class="text-2xl font-bold mt-2">Contador de Asistencia</h1>
+        <p id="role-indicator" class="text-xs text-slate-400 mt-1">Selecciona tu rol para comenzar</p>
+    </header>
 
-        <!-- Encabezado -->
-        <header class="text-center mb-8 relative z-10">
-            <span class="px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full inline-block mb-3">
-                Herramienta de Conteo de Asistencia
-            </span>
-            <h1 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                Contador de Asistencia
-            </h1>
-            <p class="text-xs sm:text-sm text-slate-400 mt-1">
-                Límite de contador entre <span id="min-label">0</span> y <span id="max-label">500</span>
-            </p>
-        </header>
+    <!-- Contenedor Principal -->
+    <main class="w-full max-w-md bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-slate-700">
 
-        <!-- Bloque Principal del Contador -->
-        <section class="flex items-center justify-between gap-3 sm:gap-4 my-6 relative z-10">
-            
-            <!-- Botón Restar (-) -->
-            <button 
-                id="btn-decrement" 
-                onclick="changeValue(-1)"
-                aria-label="Restar uno"
-                class="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-700/60 border border-slate-600/50 hover:bg-rose-500/20 hover:border-rose-500/50 hover:text-rose-400 text-slate-300 font-bold transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:hover:bg-slate-700/60 disabled:hover:border-slate-600/50 disabled:hover:text-slate-300 disabled:cursor-not-allowed shadow-lg hover:shadow-rose-500/10">
-                <i data-lucide="minus" class="w-7 h-7 stroke-[2.5] transition-transform group-hover:scale-110"></i>
+        <!-- 1. Pantalla de Selección de Rol -->
+        <div id="view-role" class="space-y-4 text-center">
+            <h2 class="text-lg font-semibold text-slate-200 mb-2">¿Cuál es tu función hoy?</h2>
+            <button onclick="setRole('acomodador')" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95">
+                🚶‍♂️ Acomodador (Presencial)
             </button>
-
-            <!-- Display del Número Central (Editable) -->
-            <div class="flex-1 text-center relative group">
-                <input 
-                    type="number" 
-                    id="counter-input" 
-                    value="0" 
-                    min="0" 
-                    max="300"
-                    oninput="handleManualInput(this)"
-                    onblur="validateInputOnBlur(this)"
-                    class="w-full bg-transparent text-center text-5xl sm:text-6xl font-extrabold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-2xl py-2 cursor-pointer transition-all duration-150 select-all hover:bg-slate-700/30"
-                    title="Haz clic para editar manualmente el número"
-                />
-                <span class="block text-[10px] text-slate-400 uppercase tracking-widest font-medium mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Clic para editar
-                </span>
-            </div>
-
-            <!-- Botón Sumar (+) -->
-            <button 
-                id="btn-increment" 
-                onclick="changeValue(1)"
-                aria-label="Sumar uno"
-                class="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-700/60 border border-slate-600/50 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:text-emerald-400 text-slate-300 font-bold transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:hover:bg-slate-700/60 disabled:hover:border-slate-600/50 disabled:hover:text-slate-300 disabled:cursor-not-allowed shadow-lg hover:shadow-emerald-500/10">
-                <i data-lucide="plus" class="w-7 h-7 stroke-[2.5] transition-transform group-hover:scale-110"></i>
+            <button onclick="setRole('audiovideo')" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95">
+                🎙️ Audio y Video (Zoom / Telegram)
             </button>
-
-        </section>
-
-        <!-- Botón STOP (Debajo del contador) -->
-        <div class="my-5 text-center relative z-10">
-            <button 
-                id="btn-stop"
-                onclick="recordAttendance()"
-                class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-bold shadow-lg shadow-rose-950/40 hover:shadow-rose-600/20 border border-rose-400/30 transition-all duration-200 active:scale-98 flex items-center justify-center gap-2 text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-rose-600 disabled:hover:to-amber-600 disabled:shadow-none">
-                <i data-lucide="square" class="w-5 h-5 fill-current"></i>
-                <span id="stop-btn-text">STOP — Registrar Presencial</span>
+            <button onclick="setRole('coordinador')" class="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95">
+                📊 Coordinador (Vista General)
             </button>
         </div>
-        
-    
 
-        <!-- Botones de Acción Secundarios -->
-        <footer class="flex items-center justify-between gap-3 pt-4 border-t border-slate-700/50 relative z-10 mb-6">
-            <button 
-                onclick="resetCounter()"
-                class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-700/40 hover:bg-slate-700 border border-slate-600/40 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-semibold transition-all active:scale-95">
-                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                Reiniciar Contador
-            </button>
-
-            <button 
-                onclick="changeValue(10)"
-                class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 hover:text-indigo-200 text-xs font-semibold transition-all active:scale-95">
-                <i data-lucide="chevrons-right" class="w-3.5 h-3.5"></i>
-                +10
-            </button>
-        </footer>
-
-        <!-- SECCIÓN DE ASISTENCIA Y RESULTADO -->
-        <section class="border-t border-slate-700/70 pt-6 relative z-10">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                    <i data-lucide="clipboard-list" class="w-5 h-5 text-indigo-400"></i>
-                    Asistencia
-                </h2>
-                <span id="attendance-count-badge" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-slate-700 text-slate-300 border border-slate-600">
-                    0/3
-                </span>
+        <!-- 2. Panel de Acomodador -->
+        <div id="view-acomodador" class="hidden text-center space-y-6">
+            <div class="bg-slate-900/60 p-6 rounded-xl border border-slate-700">
+                <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Presencial</span>
+                <div id="val-presencial" class="text-6xl font-extrabold my-3 text-white">0</div>
             </div>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="adjust('presencial', -1)" class="py-4 bg-rose-600/80 hover:bg-rose-600 text-2xl font-bold rounded-xl shadow transition active:scale-95">-1</button>
+                <button onclick="adjust('presencial', 1)" class="py-4 bg-emerald-600 hover:bg-emerald-500 text-2xl font-bold rounded-xl shadow transition active:scale-95">+1</button>
+            </div>
+            <button onclick="changeRole()" class="text-xs text-slate-400 underline mt-4">Cambiar de rol</button>
+        </div>
 
-            <!-- Tabla/Cuadro de Registros -->
-            <div class="bg-slate-900/60 rounded-2xl border border-slate-700/60 overflow-hidden divide-y divide-slate-800">
-                <!-- Registro 1: Presencial -->
-                <div class="flex items-center justify-between p-3.5 transition-colors" id="row-presencial">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                            <i data-lucide="user-check" class="w-4 h-4"></i>
-                        </div>
-                        <span class="text-sm font-semibold text-slate-300">Presencial</span>
-                    </div>
-                    <span id="val-presencial" class="text-base font-bold text-slate-500">—</span>
-                </div>
-
-                <!-- Registro 2: Zoom -->
-                <div class="flex items-center justify-between p-3.5 transition-colors" id="row-zoom">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
-                            <i data-lucide="video" class="w-4 h-4"></i>
-                        </div>
-                        <span class="text-sm font-semibold text-slate-300">Zoom</span>
-                    </div>
-                    <span id="val-zoom" class="text-base font-bold text-slate-500">—</span>
-                </div>
-
-                <!-- Registro 3: Telegram -->
-                <div class="flex items-center justify-between p-3.5 transition-colors" id="row-telegram">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center">
-                            <i data-lucide="send" class="w-4 h-4"></i>
-                        </div>
-                        <span class="text-sm font-semibold text-slate-300">Telegram</span>
-                    </div>
-                    <span id="val-telegram" class="text-base font-bold text-slate-500">—</span>
+        <!-- 3. Panel de Audio y Video -->
+        <div id="view-audiovideo" class="hidden space-y-6">
+            <!-- Zoom -->
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 text-center">
+                <span class="text-xs text-blue-400 font-bold uppercase tracking-wider">Zoom</span>
+                <div id="val-zoom" class="text-4xl font-extrabold my-2 text-white">0</div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <button onclick="adjust('zoom', -1)" class="py-2 bg-rose-600/80 hover:bg-rose-600 font-bold rounded-lg">-1</button>
+                    <button onclick="adjust('zoom', 1)" class="py-2 bg-blue-600 hover:bg-blue-500 font-bold rounded-lg">+1</button>
                 </div>
             </div>
-
-            <!-- Cuadro de Resultado (Suma Total) -->
-            <div class="mt-4 p-4 rounded-2xl bg-gradient-to-r from-indigo-950/80 to-purple-950/80 border border-indigo-500/30 flex items-center justify-between">
-                <div>
-                    <span class="text-xs uppercase tracking-wider text-indigo-300 font-semibold block">Resultado</span>
-                    <span class="text-xs text-slate-400">Suma Total de Asistencias</span>
-                </div>
-                <div id="total-result" class="text-3xl font-extrabold text-emerald-400 tracking-tight">
-                    0
+            <!-- Telegram -->
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 text-center">
+                <span class="text-xs text-sky-400 font-bold uppercase tracking-wider">Telegram</span>
+                <div id="val-telegram" class="text-4xl font-extrabold my-2 text-white">0</div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <button onclick="adjust('telegram', -1)" class="py-2 bg-rose-600/80 hover:bg-rose-600 font-bold rounded-lg">-1</button>
+                    <button onclick="adjust('telegram', 1)" class="py-2 bg-sky-600 hover:bg-sky-500 font-bold rounded-lg">+1</button>
                 </div>
             </div>
+            <button onclick="changeRole()" class="w-full text-xs text-slate-400 underline text-center mt-2">Cambiar de rol</button>
+        </div>
 
-            <!-- Botón de Reiniciar Todo -->
-            <button 
-                onclick="resetAll()"
-                class="w-full mt-4 py-2.5 rounded-xl border border-slate-700 hover:border-slate-600 bg-slate-800/50 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold transition-all flex items-center justify-center gap-2">
-                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                Reiniciar todo (Contador + Registros)
-            </button>
-        </section>
+        <!-- 4. Panel de Coordinador / Resumen -->
+        <div id="view-coordinador" class="hidden space-y-4 text-center">
+            <h2 class="text-sm font-semibold text-slate-300">Resumen en Tiempo Real</h2>
+            <div class="grid grid-cols-3 gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-700 text-xs">
+                <div>Presencial: <span id="tot-presencial" class="font-bold text-emerald-400">0</span></div>
+                <div>Zoom: <span id="tot-zoom" class="font-bold text-blue-400">0</span></div>
+                <div>Telegram: <span id="tot-telegram" class="font-bold text-sky-400">0</span></div>
+            </div>
+            <div class="bg-indigo-950/60 p-6 rounded-xl border border-indigo-500/40">
+                <span class="text-xs text-indigo-300 font-bold uppercase tracking-wider">Total General Asistencia</span>
+                <div id="val-total" class="text-6xl font-extrabold my-2 text-white">0</div>
+            </div>
+            <button onclick="changeRole()" class="text-xs text-slate-400 underline">Cambiar de rol</button>
+        </div>
 
     </main>
 
-    <!-- Notificación / Mensaje Alerta Personalizado (Toast) -->
-    <div id="toast" class="fixed bottom-6 bg-slate-800 text-slate-200 border border-slate-700 px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none z-50 text-sm">
-        <i id="toast-icon" data-lucide="info" class="w-5 h-5 text-indigo-400"></i>
-        <span id="toast-msg">Mensaje del sistema</span>
-    </div>
+    <!-- Pie de página -->
+    <footer class="w-full max-w-md text-center py-4 text-xs text-slate-500">
+        Conectado en la nube con Firebase Realtime Database
+    </footer>
 
-    <!-- Script de Lógica -->
+    <!-- Lógica de Firebase y Roles -->
     <script>
-        // Configuración y variables de estado
-        const MIN_VALUE = 0;
-        const MAX_VALUE = 500;
-        let currentValue = 0;
-
-        // Estructura para registrar los tres tipos de asistencia
-        const categories = ['Presencial', 'Zoom', 'Telegram'];
-        let attendanceRecords = {
-            'Presencial': null,
-            'Zoom': null,
-            'Telegram': null
+        // Configuración de Firebase provista
+        const firebaseConfig = {
+            apiKey: "AIzaSyB03_-v52rp51OTf24aGSjS9RPN8awpvxc",
+            authDomain: "contador-de-asistencia-51b07.firebaseapp.com",
+            databaseURL: "https://contador-de-asistencia-51b07-default-rtdb.firebaseio.com",
+            projectId: "contador-de-asistencia-51b07",
+            storageBucket: "contador-de-asistencia-51b07.firebasestorage.app",
+            messagingSenderId: "565032901751",
+            appId: "1:565032901751:web:f46df9b2f3d5349b873a72"
         };
-        let currentCategoryIndex = 0;
 
-        // Elementos DOM
-        const inputEl = document.getElementById('counter-input');
-        const btnDecrement = document.getElementById('btn-decrement');
-        const btnIncrement = document.getElementById('btn-increment');
-        const progressBar = document.getElementById('progress-bar');
-        const progressPercent = document.getElementById('progress-percent');
-        const btnStop = document.getElementById('btn-stop');
-        const stopBtnText = document.getElementById('stop-btn-text');
-        const attendanceBadge = document.getElementById('attendance-count-badge');
-        const totalResultEl = document.getElementById('total-result');
-        const toastEl = document.getElementById('toast');
-        const toastMsg = document.getElementById('toast-msg');
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // Inicializar Lucide Icons
-        lucide.createIcons();
+        // Referencias a contadores en la base de datos
+        const dbRef = db.ref('asistencia');
 
-        // Actualizar UI completa del contador
-        function updateUI(triggerAnimation = true) {
-            inputEl.value = currentValue;
+        let currentRole = '';
 
-            btnDecrement.disabled = currentValue <= MIN_VALUE;
-            btnIncrement.disabled = currentValue >= MAX_VALUE;
+        function setRole(role) {
+            currentRole = role;
+            document.getElementById('view-role').classList.add('hidden');
+            document.getElementById('view-acomodador').classList.add('hidden');
+            document.getElementById('view-audiovideo').classList.add('hidden');
+            document.getElementById('view-coordinador').classList.add('hidden');
 
-            const percentage = ((currentValue - MIN_VALUE) / (MAX_VALUE - MIN_VALUE)) * 100;
-            progressBar.style.width = `${Math.max(percentage, 1)}%`;
-            progressPercent.textContent = `${percentage.toFixed(1)}%`;
-
-            if (triggerAnimation) {
-                inputEl.classList.remove('animate-pop');
-                void inputEl.offsetWidth;
-                inputEl.classList.add('animate-pop');
+            if (role === 'acomodador') {
+                document.getElementById('view-acomodador').classList.remove('hidden');
+                document.getElementById('role-indicator').innerText = 'Modo: Acomodador';
+            } else if (role === 'audiovideo') {
+                document.getElementById('view-audiovideo').classList.remove('hidden');
+                document.getElementById('role-indicator').innerText = 'Modo: Audio y Video';
+            } else if (role === 'coordinador') {
+                document.getElementById('view-coordinador').classList.remove('hidden');
+                document.getElementById('role-indicator').innerText = 'Modo: Coordinador (Vista General)';
             }
         }
 
-        // Registrar asistencia mediante botón STOP
-        function recordAttendance() {
-            if (currentCategoryIndex >= categories.length) {
-                showToast('Ya se han completado los 3 registros de asistencia.', 'alert-triangle');
-                return;
-            }
-
-            const currentCategory = categories[currentCategoryIndex];
-            attendanceRecords[currentCategory] = currentValue;
-
-            // Actualizar fila correspondiente en el cuadro
-            const categoryKey = currentCategory.toLowerCase();
-            const valEl = document.getElementById(`val-${categoryKey}`);
-            const rowEl = document.getElementById(`row-${categoryKey}`);
-
-            if (valEl && rowEl) {
-                valEl.textContent = currentValue;
-                valEl.className = "text-base font-extrabold text-indigo-400 animate-pop";
-                rowEl.classList.add('bg-indigo-500/10');
-            }
-
-            // Avanzar al siguiente tipo de asistencia
-            currentCategoryIndex++;
-
-            // Recalcular suma total en Resultado
-            calculateTotal();
-
-            // Actualizar estado del botón STOP
-            updateStopButtonState();
-
-            if (currentCategoryIndex < categories.length) {
-                showToast(`Registrado ${currentCategory}: ${currentValue}`, 'check-circle-2');
-            } else {
-                showToast('¡Asistencias completadas (3/3)!', 'check-circle-2');
-            }
+        function changeRole() {
+            document.getElementById('view-acomodador').classList.add('hidden');
+            document.getElementById('view-audiovideo').classList.add('hidden');
+            document.getElementById('view-coordinador').classList.add('hidden');
+            document.getElementById('view-role').classList.remove('hidden');
+            document.getElementById('role-indicator').innerText = 'Selecciona tu rol para comenzar';
         }
 
-        // Calcular la suma total acumulada
-        function calculateTotal() {
-            let total = 0;
-            Object.values(attendanceRecords).forEach(val => {
-                if (val !== null) total += val;
+        function adjust(tipo, cantidad) {
+            dbRef.child(tipo).transaction(function(currentVal) {
+                let actual = currentVal || 0;
+                let nuevo = actual + cantidad;
+                return nuevo < 0 ? 0 : nuevo;
             });
-
-            totalResultEl.textContent = total;
-            totalResultEl.classList.remove('animate-pop');
-            void totalResultEl.offsetWidth;
-            totalResultEl.classList.add('animate-pop');
         }
 
-        // Actualizar texto e interactividad del botón STOP según los registros guardados
-        function updateStopButtonState() {
-            attendanceBadge.textContent = `${currentCategoryIndex}/3`;
+        // Escuchar cambios en tiempo real desde Firebase
+        dbRef.on('value', (snapshot) => {
+            const data = snapshot.val() || { presencial: 0, zoom: 0, telegram: 0 };
+            const p = data.presencial || 0;
+            const z = data.zoom || 0;
+            const t = data.telegram || 0;
+            const total = p + z + t;
 
-            if (currentCategoryIndex === 0) {
-                stopBtnText.textContent = "STOP — Registrar Presencial";
-                btnStop.disabled = false;
-                attendanceBadge.className = "px-2.5 py-0.5 text-xs font-bold rounded-full bg-slate-700 text-slate-300 border border-slate-600";
-            } else if (currentCategoryIndex === 1) {
-                stopBtnText.textContent = "STOP — Registrar Zoom";
-                btnStop.disabled = false;
-                attendanceBadge.className = "px-2.5 py-0.5 text-xs font-bold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40";
-            } else if (currentCategoryIndex === 2) {
-                stopBtnText.textContent = "STOP — Registrar Telegram";
-                btnStop.disabled = false;
-                attendanceBadge.className = "px-2.5 py-0.5 text-xs font-bold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40";
-            } else {
-                stopBtnText.textContent = "Completado (3/3) — Asistencia Finalizada";
-                btnStop.disabled = true;
-                attendanceBadge.className = "px-2.5 py-0.5 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
-            }
-        }
+            // Actualizar vistas
+            document.getElementById('val-presencial').innerText = p;
+            document.getElementById('val-zoom').innerText = z;
+            document.getElementById('val-telegram').innerText = t;
 
-        // Cambiar valor mediante botones (+ / -)
-        function changeValue(delta) {
-            const newValue = currentValue + delta;
-
-            if (newValue < MIN_VALUE) {
-                currentValue = MIN_VALUE;
-                showToast(`El valor mínimo es ${MIN_VALUE}`, 'alert-circle');
-            } else if (newValue > MAX_VALUE) {
-                currentValue = MAX_VALUE;
-                showToast(`El valor máximo es ${MAX_VALUE}`, 'check-circle-2');
-            } else {
-                currentValue = newValue;
-            }
-
-            updateUI();
-        }
-
-        // Manejar edición manual en vivo
-        function handleManualInput(input) {
-            const val = parseInt(input.value, 10);
-            if (!isNaN(val) && val >= MIN_VALUE && val <= MAX_VALUE) {
-                currentValue = val;
-                updateUI(false);
-            }
-        }
-
-        // Validar input al perder foco
-        function validateInputOnBlur(input) {
-            let val = parseInt(input.value, 10);
-            if (isNaN(val) || val < MIN_VALUE) val = MIN_VALUE;
-            else if (val > MAX_VALUE) val = MAX_VALUE;
-
-            currentValue = val;
-            updateUI();
-        }
-
-        // Reiniciar solo el contador
-        function resetCounter() {
-            currentValue = MIN_VALUE;
-            updateUI();
-            showToast("Contador reiniciado a 1", "rotate-ccw");
-        }
-
-        // Reiniciar todo (Contador + Registros)
-        function resetAll() {
-            currentValue = MIN_VALUE;
-            currentCategoryIndex = 0;
-            attendanceRecords = { 'Presencial': null, 'Zoom': null, 'Telegram': null };
-
-            categories.forEach(cat => {
-                const key = cat.toLowerCase();
-                const valEl = document.getElementById(`val-${key}`);
-                const rowEl = document.getElementById(`row-${key}`);
-                if (valEl) {
-                    valEl.textContent = '—';
-                    valEl.className = "text-base font-bold text-slate-500";
-                }
-                if (rowEl) {
-                    rowEl.classList.remove('bg-indigo-500/10');
-                }
-            });
-
-            calculateTotal();
-            updateStopButtonState();
-            updateUI();
-            showToast("Se han borrado todos los registros y el contador", "refresh-cw");
-        }
-
-        // Soporte de Teclado
-        document.addEventListener('keydown', (e) => {
-            if (document.activeElement === inputEl && e.key === 'Enter') {
-                inputEl.blur();
-                return;
-            }
-
-            if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
-                e.preventDefault();
-                changeValue(1);
-            } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
-                e.preventDefault();
-                changeValue(-1);
-            }
+            document.getElementById('tot-presencial').innerText = p;
+            document.getElementById('tot-zoom').innerText = z;
+            document.getElementById('tot-telegram').innerText = t;
+            document.getElementById('val-total').innerText = total;
         });
-
-        // Notificaciones Toast
-        let toastTimeout;
-        function showToast(message, iconName = 'info') {
-            clearTimeout(toastTimeout);
-            toastMsg.textContent = message;
-            
-            toastEl.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
-            toastEl.classList.add('translate-y-0', 'opacity-100');
-
-            toastTimeout = setTimeout(() => {
-                toastEl.classList.remove('translate-y-0', 'opacity-100');
-                toastEl.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
-            }, 2500);
-        }
-
-        // Inicializar interfaz
-        updateUI(false);
-        updateStopButtonState();
     </script>
 </body>
-</html>
+                               </html>
