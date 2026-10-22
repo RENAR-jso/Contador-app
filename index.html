@@ -43,7 +43,7 @@
 
             <hr class="border-slate-700 my-4">
 
-            <!-- Botón para Iniciar Nueva Reunión (Reinicia TODO) -->
+            <!-- Botón para Iniciar Nueva Reunión -->
             <button onclick="resetAllCounters()" class="w-full py-3 bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 font-semibold rounded-xl transition text-xs flex items-center justify-center gap-2">
                 <span>🔄</span> Iniciar Nueva Reunión (Reiniciar Todo)
             </button>
@@ -106,6 +106,17 @@
                 <div id="val-total" class="text-6xl font-extrabold my-2 text-white">0</div>
             </div>
 
+            <!-- Botones de Finalización y Reporte -->
+            <div class="space-y-2 pt-2">
+                <button id="btn-finish" onclick="finishMeeting()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
+                    <span>💾</span> Guardar y Finalizar Reunión
+                </button>
+                
+                <button id="btn-copy" onclick="copyReport()" disabled class="w-full py-3 bg-slate-700 text-slate-500 font-bold rounded-xl transition text-xs flex items-center justify-center gap-2 cursor-not-allowed">
+                    <span>📋</span> Copiar Reporte para Grupo
+                </button>
+            </div>
+
             <div class="pt-2 border-t border-slate-700 flex justify-center items-center text-xs">
                 <button onclick="changeRole()" class="text-slate-400 underline">Cambiar de rol</button>
             </div>
@@ -135,6 +146,9 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const dbRef = db.ref('asistencia');
+        const historyRef = db.ref('historial');
+
+        let currentData = { presencial: 0, zoom: 0, telegram: 0 };
 
         function setRole(role) {
             document.getElementById('view-role').classList.add('hidden');
@@ -170,7 +184,6 @@
             });
         }
 
-        // Función para reiniciar solo campos específicos
         function resetSection(fields, nombreSeccion) {
             if (confirm(`¿Estás seguro de que deseas reiniciar únicamente el contador de ${nombreSeccion}?`)) {
                 fields.forEach(field => {
@@ -179,7 +192,6 @@
             }
         }
 
-        // Función para reiniciar TODOS los contadores
         function resetAllCounters() {
             if (confirm("¿Estás seguro de que deseas reiniciar TODOS los contadores a cero para iniciar una nueva reunión?")) {
                 dbRef.set({
@@ -187,27 +199,75 @@
                     zoom: 0,
                     telegram: 0
                 });
+                disableCopyBtn();
             }
+        }
+
+        // Función para Guardar y Finalizar Reunión
+        function finishMeeting() {
+            const fecha = new Date().toLocaleDateString('es-ES');
+            const total = currentData.presencial + currentData.zoom + currentData.telegram;
+
+            historyRef.push({
+                fecha: fecha,
+                presencial: currentData.presencial,
+                zoom: currentData.zoom,
+                telegram: currentData.telegram,
+                total: total,
+                timestamp: Date.now()
+            }).then(() => {
+                alert("¡Reunión guardada exitosamente en la nube!");
+                enableCopyBtn();
+            });
+        }
+
+        function enableCopyBtn() {
+            const btnCopy = document.getElementById('btn-copy');
+            btnCopy.disabled = false;
+            btnCopy.className = "w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow transition text-xs flex items-center justify-center gap-2 cursor-pointer";
+        }
+
+        function disableCopyBtn() {
+            const btnCopy = document.getElementById('btn-copy');
+            btnCopy.disabled = true;
+            btnCopy.className = "w-full py-3 bg-slate-700 text-slate-500 font-bold rounded-xl transition text-xs flex items-center justify-center gap-2 cursor-not-allowed";
+        }
+
+        // Función para Copiar Reporte al Portapapeles
+        function copyReport() {
+            const fecha = new Date().toLocaleDateString('es-ES');
+            const total = currentData.presencial + currentData.zoom + currentData.telegram;
+
+            const textoReporte = `📊 *ASISTENCIA DE REUNIÓN*\n📅 Fecha: ${fecha}\n\n🚶‍♂️ *Presencial:* ${currentData.presencial}\n💻 *Zoom:* ${currentData.zoom}\n📱 *Telegram:* ${currentData.telegram}\n\n👥 *TOTAL GENERAL:* ${total}`;
+
+            navigator.clipboard.writeText(textoReporte).then(() => {
+                alert("¡Reporte copiado al portapapeles! Ya puedes pegarlo en el grupo.");
+            }).catch(err => {
+                alert("Error al copiar reporte: " + err);
+            });
         }
 
         // Escuchar cambios en tiempo real desde Firebase
         dbRef.on('value', (snapshot) => {
             const data = snapshot.val() || { presencial: 0, zoom: 0, telegram: 0 };
-            const p = data.presencial || 0;
-            const z = data.zoom || 0;
-            const t = data.telegram || 0;
-            const total = p + z + t;
+            currentData = {
+                presencial: data.presencial || 0,
+                zoom: data.zoom || 0,
+                telegram: data.telegram || 0
+            };
+
+            const total = currentData.presencial + currentData.zoom + currentData.telegram;
 
             // Actualizar interfaz
-            document.getElementById('val-presencial').innerText = p;
-            document.getElementById('val-zoom').innerText = z;
-            document.getElementById('val-telegram').innerText = t;
+            document.getElementById('val-presencial').innerText = currentData.presencial;
+            document.getElementById('val-zoom').innerText = currentData.zoom;
+            document.getElementById('val-telegram').innerText = currentData.telegram;
 
-            document.getElementById('tot-presencial').innerText = p;
-            document.getElementById('tot-zoom').innerText = z;
-            document.getElementById('tot-telegram').innerText = t;
+            document.getElementById('tot-presencial').innerText = currentData.presencial;
+            document.getElementById('tot-zoom').innerText = currentData.zoom;
+            document.getElementById('tot-telegram').innerText = currentData.telegram;
             document.getElementById('val-total').innerText = total;
         });
     </script>
 </body>
-</html>
+    </html>
