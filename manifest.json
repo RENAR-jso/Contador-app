@@ -1,0 +1,13 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Contador de asistencia",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Contador",
+  "start_url": "/",
+  "theme_color": "rgb(164, 33, 172)",
+  "id": "app contador asistencia ",
+  "description": "Contador de asistencia para eventos formales o reuniones programadas donde hayan muchos asistentes"
+}
